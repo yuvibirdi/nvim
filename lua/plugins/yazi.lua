@@ -43,45 +43,6 @@ return {
 
     -- ensure a locally installed yazi (e.g. ~/.local/bin/yazi) is discoverable
     local local_bin = vim.fn.expand("~/.local/bin")
-
-    local function ensure_yazi_binary()
-      if vim.fn.executable('yazi') == 1 then
-        return
-      end
-
-      local uname = vim.loop.os_uname().sysname
-      if uname ~= 'Linux' then
-        vim.notify('Yazi binary missing and auto-install only runs on Linux', vim.log.levels.WARN)
-        return
-      end
-
-      local bin_dir = local_bin
-      if vim.fn.isdirectory(bin_dir) == 0 then
-        vim.fn.mkdir(bin_dir, 'p')
-      end
-
-      local download_url = 'https://github.com/sxyazi/yazi/releases/latest/download/yazi-x86_64-unknown-linux-gnu.tar.xz'
-      local install_cmd = table.concat({
-        'set -e',
-        'tmpdir=$(mktemp -d)',
-        'trap "rm -rf \"$tmpdir\"" EXIT',
-        'curl -fsSL ' .. download_url .. ' -o "$tmpdir/yazi.tar.xz"',
-        'tar -xJf "$tmpdir/yazi.tar.xz" -C "$tmpdir"',
-        'cp "$tmpdir"/yazi-x86_64-unknown-linux-gnu/yazi ' .. vim.fn.shellescape(bin_dir .. '/yazi'),
-        'chmod +x ' .. vim.fn.shellescape(bin_dir .. '/yazi'),
-      }, ' && ')
-
-      vim.notify('Installing Yazi locally (no root required)...', vim.log.levels.INFO)
-      vim.fn.system({ 'sh', '-c', install_cmd })
-      if vim.v.shell_error ~= 0 then
-        vim.notify('Failed to install Yazi automatically. Please install it manually.', vim.log.levels.ERROR)
-      else
-        vim.notify('Yazi installed to ' .. bin_dir .. '/yazi', vim.log.levels.INFO)
-      end
-    end
-
-    ensure_yazi_binary()
-
     if local_bin ~= "" and vim.fn.isdirectory(local_bin) == 1 then
       local current_path = vim.env.PATH or ""
       if not current_path:match(vim.pesc(local_bin)) then
