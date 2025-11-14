@@ -43,12 +43,6 @@ return {
 
     -- ensure a locally installed yazi (e.g. ~/.local/bin/yazi) is discoverable
     local local_bin = vim.fn.expand("~/.local/bin")
-    if local_bin ~= "" and vim.fn.isdirectory(local_bin) == 1 then
-      local current_path = vim.env.PATH or ""
-      if not current_path:match(vim.pesc(local_bin)) then
-        vim.env.PATH = local_bin .. ":" .. current_path
-      end
-    end
 
     local function ensure_yazi_binary()
       if vim.fn.executable('yazi') == 1 then
@@ -87,5 +81,12 @@ return {
     end
 
     ensure_yazi_binary()
+
+    if local_bin ~= "" and vim.fn.isdirectory(local_bin) == 1 then
+      local current_path = vim.env.PATH or ""
+      if not current_path:match(vim.pesc(local_bin)) then
+        vim.env.PATH = local_bin .. ":" .. current_path
+      end
+    end
   end,
 }
