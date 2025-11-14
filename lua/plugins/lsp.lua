@@ -1,0 +1,248 @@
+-- Fast and feature-rich LSP configuration (Neovim 0.11+ native API)
+return {
+  -- LSP installer (optional but convenient)
+  {
+    'williamboman/mason.nvim',
+    config = true,
+  },
+  {
+    'williamboman/mason-lspconfig.nvim',
+    dependencies = { 'williamboman/mason.nvim' },
+    config = function()
+      require('mason-lspconfig').setup({
+        ensure_installed = { 'clangd', 'texlab', 'pyright', 'rust_analyzer', 'lua_ls' },
+      })
+    end,
+  },
+
+  -- Useful status updates for LSP
+  { 'j-hui/fidget.nvim', opts = {} },
+
+  -- LSP Configuration using native Neovim 0.11+ API
+  {
+    'neovim/nvim-lspconfig', -- Still provides server configs
+    config = function()
+      -- Global LSP settings
+      vim.lsp.config('*', {
+        root_markers = { '.git', '.hg' },
+      })
+
+      -- Diagnostics: prefer floats over noisy signs/virtual text
+      vim.diagnostic.config({
+        float = { border = 'rounded', source = 'if_many' },
+        severity_sort = true,
+        signs = {
+          text = {
+            [vim.diagnostic.severity.ERROR] = '!!',
+            [vim.diagnostic.severity.WARN] = '??',
+            [vim.diagnostic.severity.INFO] = 'ii',
+            [vim.diagnostic.severity.HINT] = '..',
+          },
+        },
+        virtual_text = false,
+      })
+
+      -- Configure LSP servers
+      local servers = {
+        {
+          'clangd',
+          {
+            cmd = {
+              'clangd',
+              '--background-index',
+              '--clang-tidy',
+              '--header-insertion=iwyu',
+              '--completion-style=detailed',
+              '--function-arg-placeholders',
+              '--fallback-style=llvm',
+              '--query-driver=/opt/homebrew/opt/gcc/bin/g++-*',
+            },
+            init_options = {
+              fallbackFlags = {
+                '-std=gnu++20',
+                '-Wall',
+                '-Wextra',
+                '-Wpedantic',
+                '-isystem', '/opt/homebrew/opt/gcc/include/c++/15',
+                '-isystem', '/opt/homebrew/opt/gcc/include/c++/15/aarch64-apple-darwin24',
+                '-isystem', '/opt/homebrew/opt/gcc/include/c++/15/backward',
+                '-isystem', '/opt/homebrew/opt/gcc/lib/gcc/current/gcc/aarch64-apple-darwin24/15/include',
+                '-isystem', '/opt/homebrew/opt/gcc/lib/gcc/current/gcc/aarch64-apple-darwin24/15/include-fixed',
+                '--gcc-toolchain=/opt/homebrew/opt/gcc',
+              },
+              usePlaceholders = true,
+              completeUnimported = true,
+              clangdFileStatus = true,
+            },
+          },
+        },
+        {
+          'texlab',
+          {
+            settings = {
+              texlab = {
+                build = {
+                  executable = 'pdflatex',
+                  args = { '-pdf', '-interaction=nonstopmode', '-synctex=1', '%f' },
+                  onSave = true,
+                },
+                forwardSearch = {
+                  executable = 'zathura',
+                  args = { '--synctex-forward', '%l:1:%f', '%p' },
+                },
+                chktex = {
+                  onOpenAndSave = true,
+                  onEdit = false,
+                },
+              },
+            },
+          },
+        },
+        { 'pyright' },
+        {
+          'rust_analyzer',
+          {
+            settings = {
+              ['rust-analyzer'] = {
+                checkOnSave = {
+                  command = 'clippy',
+                },
+              },
+            },
+          },
+        },
+        {
+          'lua_ls',
+          {
+            settings = {
+              Lua = {
+                runtime = { version = 'LuaJIT' },
+                workspace = {
+                  checkThirdParty = false,
+                  library = {
+                    '${3rd}/luv/library',
+                    unpack(vim.api.nvim_get_runtime_file('', true)),
+                  },
+                },
+                completion = {
+                  callSnippet = 'Replace',
+                },
+                diagnostics = { disable = { 'missing-fields' } },
+              },
+            },
+          },
+        },
+      }
+
+      -- Configure and enable each server
+      for _, lsp in ipairs(servers) do
+        local name, config = lsp[1], lsp[2]
+        if config then
+          vim.lsp.config(name, config)
+        end
+        vim.lsp.enable(name)
+      end
+
+      -- LSP keybindings (using LspAttach autocmd)
+      vim.api.nvim_create_autocmd('LspAttach', {
+        callback = function(args)
+          local bufnr = args.buf
+          local client = vim.lsp.get_client_by_id(args.data.client_id)
+
+          local map = function(keys, func, desc)
+            vim.keymap.set('n', keys, func, { buffer = bufnr, desc = 'LSP: ' .. desc })
+          end
+
+          map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
+          map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
+          map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
+          map('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
+          map('<leader>D', require('telescope.builtin').lsp_type_definitions, 'Type [D]efinition')
+          map('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
+          map('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
+          map('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
+          map('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
+          map('K', vim.lsp.buf.hover, 'Hover Documentation')
+
+          -- Enable completion (native to Neovim 0.11+)
+          if client and client.supports_method('textDocument/completion') then
+            vim.lsp.completion.enable(true, client.id, bufnr, { autotrigger = true })
+          end
+
+          -- Format on save
+          if client and client.supports_method('textDocument/formatting') then
+            vim.api.nvim_create_autocmd('BufWritePre', {
+              buffer = bufnr,
+              callback = function()
+                vim.lsp.buf.format({ bufnr = bufnr })
+              end,
+            })
+          end
+        end,
+      })
+    end,
+  },
+
+  -- Autocompletion
+  {
+    'hrsh7th/nvim-cmp',
+    dependencies = {
+      -- Snippet Engine
+      'L3MON4D3/LuaSnip',
+      'saadparwaiz1/cmp_luasnip',
+
+      -- LSP completion source
+      'hrsh7th/cmp-nvim-lsp',
+      'hrsh7th/cmp-path',
+      'hrsh7th/cmp-buffer',
+    },
+    config = function()
+      local cmp = require('cmp')
+      local luasnip = require('luasnip')
+
+      cmp.setup({
+        snippet = {
+          expand = function(args)
+            luasnip.lsp_expand(args.body)
+          end,
+        },
+        completion = { completeopt = 'menu,menuone,noinsert' },
+        mapping = cmp.mapping.preset.insert({
+          ['<C-n>'] = cmp.mapping.select_next_item(),
+          ['<C-p>'] = cmp.mapping.select_prev_item(),
+          ['<C-d>'] = cmp.mapping.scroll_docs(-4),
+          ['<C-f>'] = cmp.mapping.scroll_docs(4),
+          ['<C-Space>'] = cmp.mapping.complete({}),
+          ['<CR>'] = cmp.mapping.confirm({
+            behavior = cmp.ConfirmBehavior.Replace,
+            select = true,
+          }),
+          ['<Tab>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_locally_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { 'i', 's' }),
+          ['<S-Tab>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.locally_jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { 'i', 's' }),
+        }),
+        sources = {
+          { name = 'nvim_lsp' },
+          { name = 'luasnip' },
+          { name = 'path' },
+          { name = 'buffer', keyword_length = 3 },
+        },
+      })
+    end,
+  },
+}
