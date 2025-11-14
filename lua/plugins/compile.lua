@@ -1,21 +1,24 @@
--- Fast compilation system for various file types
+-- Simple toggleterm-based compiler for competitive programming
 return {
   {
-    'stevearc/overseer.nvim',
-    opts = {},
+    'akinsho/toggleterm.nvim',
+    version = '*',
     config = function()
-      local overseer = require('overseer')
-
-      overseer.setup({
-        templates = { 'builtin' },
-        strategy = {
-          "toggleterm",
-          direction = "horizontal",
-          open_on_start = true,
-        },
+      require('toggleterm').setup({
+        size = 20,
+        direction = 'horizontal',
+        close_on_exit = false,
+        persist_mode = true,
       })
 
-      -- Resolve toolchain per platform
+      local Terminal = require('toggleterm.terminal').Terminal
+      local compile_term = Terminal:new({
+        direction = 'horizontal',
+        close_on_exit = false,
+        hidden = true,
+        display_name = 'Compile',
+      })
+
       local function detect_cpp_compiler()
         local prefer = { 'g++-15', 'g++-14', 'g++-13', 'g++-12', 'g++-11', 'g++-10', 'g++-9', 'g++' }
         for _, bin in ipairs(prefer) do
@@ -24,6 +27,16 @@ return {
           end
         end
         return 'g++'
+      end
+
+      local function detect_c_compiler()
+        local prefer = { 'gcc-14', 'gcc-13', 'gcc-12', 'gcc-11', 'gcc-10', 'gcc-9', 'gcc' }
+        for _, bin in ipairs(prefer) do
+          if vim.fn.executable(bin) == 1 then
+            return bin
+          end
+        end
+        return 'gcc'
       end
 
       local function build_cpp_flags()
@@ -51,98 +64,73 @@ return {
         end
       end
 
-      local function detect_c_compiler()
-        local prefer = { 'gcc-14', 'gcc-13', 'gcc-12', 'gcc-11', 'gcc-10', 'gcc-9', 'gcc' }
-        for _, bin in ipairs(prefer) do
-          if vim.fn.executable(bin) == 1 then
-            return bin
-          end
-        end
-        return 'gcc'
-      end
-
       local function build_c_flags()
         return table.concat({ '-std=c11', '-O2', '-Wall', '-Wextra', '-g' }, ' ')
       end
 
-      -- Quick compile commands based on filetype
+      local function ensure_input_file(dir)
+        local input_path = dir .. '/input.txt'
+        if vim.fn.filereadable(input_path) == 0 then
+          vim.fn.writefile({}, input_path)
+        end
+        return input_path
+      end
+
+      local function send_to_terminal(cmd)
+        compile_term:open()
+        compile_term:send(cmd .. '\n', true)
+      end
+
       local function compile_current_file()
         local filetype = vim.bo.filetype
         local filepath = vim.fn.expand('%:p')
+        if filepath == '' then
+          vim.notify('Save the file before compiling.', vim.log.levels.WARN)
+          return
+        end
+
         local filename = vim.fn.expand('%:t:r')
         local dir = vim.fn.expand('%:p:h')
-        local cwd = vim.fn.shellescape(dir)
-        local path = vim.fn.shellescape(filepath)
-        local output = vim.fn.shellescape(filename)
+        local input_path = ensure_input_file(dir)
 
-        local cmd
+        local shell_dir = vim.fn.shellescape(dir)
+        local shell_src = vim.fn.shellescape(filepath)
+        local shell_bin = vim.fn.shellescape(filename)
+        local shell_input = vim.fn.shellescape(input_path)
+
+        local compile_cmd
         if filetype == 'cpp' or filetype == 'cxx' then
-          cmd = string.format('cd %s && %s %s %s -o %s && echo "Compiled: %s"',
-            cwd,
-            detect_cpp_compiler(),
-            build_cpp_flags(),
-            path,
-            output,
-            filename)
+          compile_cmd = string.format('%s %s %s -o %s', detect_cpp_compiler(), build_cpp_flags(), shell_src, shell_bin)
         elseif filetype == 'c' then
-          cmd = string.format('cd %s && %s %s %s -o %s && echo "Compiled: %s"',
-            cwd,
-            detect_c_compiler(),
-            build_c_flags(),
-            path,
-            output,
-            filename)
+          compile_cmd = string.format('%s %s %s -o %s', detect_c_compiler(), build_c_flags(), shell_src, shell_bin)
         elseif filetype == 'tex' then
-          cmd = string.format('cd %s && pdflatex -interaction=nonstopmode %s', cwd, path)
+          compile_cmd = string.format('pdflatex -interaction=nonstopmode %s', shell_src)
         elseif filetype == 'markdown' or filetype == 'md' then
-          cmd = string.format('cd %s && pandoc %s -o %s.pdf', cwd, path, output)
-        end
-
-        if cmd then
-          overseer.run_template({ name = 'shell', params = { cmd = cmd } })
+          compile_cmd = string.format('pandoc %s -o %s.pdf', shell_src, shell_bin)
         else
           vim.notify('No compile command for filetype: ' .. filetype, vim.log.levels.WARN)
+          return
         end
-      end
 
-      -- Build entire project (looks for Makefile, CMakeLists.txt, etc.)
-      local function build_project()
-        local dir = vim.fn.getcwd()
+        local run_cmd
+        if filetype == 'cpp' or filetype == 'cxx' or filetype == 'c' then
+          run_cmd = string.format('./%s < %s', shell_bin, shell_input)
+        end
 
-        -- Check for various build systems
-        if vim.fn.filereadable('Makefile') == 1 then
-          overseer.run_template({ name = 'shell', params = { cmd = 'make' } })
-        elseif vim.fn.filereadable('CMakeLists.txt') == 1 then
-          overseer.run_template({
-            name = 'shell',
-            params = { cmd = 'cmake -B build && cmake --build build' }
-          })
-        elseif vim.fn.filereadable('build.sh') == 1 then
-          overseer.run_template({ name = 'shell', params = { cmd = './build.sh' } })
-        elseif vim.fn.filereadable('package.json') == 1 then
-          overseer.run_template({ name = 'shell', params = { cmd = 'npm run build' } })
-        elseif vim.fn.filereadable('Cargo.toml') == 1 then
-          overseer.run_template({ name = 'shell', params = { cmd = 'cargo build' } })
+        local full_cmd
+        if run_cmd then
+          full_cmd = string.format('cd %s && %s && echo "\n--- Running ---" && %s', shell_dir, compile_cmd, run_cmd)
         else
-          vim.notify('No build system found', vim.log.levels.WARN)
+          full_cmd = string.format('cd %s && %s', shell_dir, compile_cmd)
         end
+
+        send_to_terminal(full_cmd)
       end
 
-      -- Keybindings
-      vim.keymap.set('n', '<leader>cc', compile_current_file, { desc = 'Compile Current File' })
-      vim.keymap.set('n', '<leader>cb', build_project, { desc = 'Build Project' })
-      vim.keymap.set('n', '<leader>cr', '<cmd>OverseerRun<cr>', { desc = 'Run Task' })
-      vim.keymap.set('n', '<leader>ct', '<cmd>OverseerToggle<cr>', { desc = 'Toggle Task List' })
+      vim.keymap.set('n', '<leader>cc', compile_current_file, { desc = 'Compile current file' })
+      vim.keymap.set('n', '<leader>v', function()
+        compile_term:toggle()
+      end, { desc = 'Toggle compile terminal' })
     end,
-  },
-  {
-    'akinsho/toggleterm.nvim',
-    version = '*',
-    opts = {
-      size = 20,
-      open_mapping = [[<c-\>]],
-      direction = 'horizontal',
-      close_on_exit = false,
-    },
   },
 }
