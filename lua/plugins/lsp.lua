@@ -42,6 +42,57 @@ return {
         virtual_text = false,
       })
 
+      local function trim(str)
+        return (str or ''):gsub('^%s+', ''):gsub('%s+$', '')
+      end
+
+      local function linux_cpp_fallback_flags()
+        if vim.loop.os_uname().sysname ~= 'Linux' then
+          return nil
+        end
+
+        if vim.fn.executable('g++') == 0 then
+          return { '-std=gnu++20' }
+        end
+
+        local version = trim(vim.fn.system('g++ -dumpfullversion 2>/dev/null'))
+        if version == '' then
+          version = trim(vim.fn.system('g++ -dumpversion'))
+        end
+
+        local target = trim(vim.fn.system('g++ -print-multiarch 2>/dev/null'))
+        if target == '' then
+          target = trim(vim.fn.system('g++ -dumpmachine'))
+        end
+
+        local function path_exists(path)
+          return path ~= '' and vim.fn.isdirectory(path) == 1
+        end
+
+        local include_paths = {}
+        local base = '/usr/include/c++/' .. version
+        if path_exists(base) then table.insert(include_paths, base) end
+
+        local target_base = string.format('/usr/include/%s/c++/%s', target, version)
+        if path_exists(target_base) then table.insert(include_paths, target_base) end
+
+        local gcc_include = string.format('/usr/lib/gcc/%s/%s/include', target, version)
+        if path_exists(gcc_include) then table.insert(include_paths, gcc_include) end
+
+        local gcc_fixed = string.format('/usr/lib/gcc/%s/%s/include-fixed', target, version)
+        if path_exists(gcc_fixed) then table.insert(include_paths, gcc_fixed) end
+
+        local fallback = { '-std=gnu++20', '-Wall', '-Wextra', '-Wconversion' }
+        for _, path in ipairs(include_paths) do
+          table.insert(fallback, '-isystem')
+          table.insert(fallback, path)
+        end
+
+        return fallback
+      end
+
+      local linux_fallback_flags = linux_cpp_fallback_flags()
+
       -- Configure LSP servers
       local servers = {
         {
@@ -55,21 +106,9 @@ return {
               '--completion-style=detailed',
               '--function-arg-placeholders',
               '--fallback-style=llvm',
-              '--query-driver=/opt/homebrew/opt/gcc/bin/g++-*',
             },
             init_options = {
-              fallbackFlags = {
-                '-std=gnu++20',
-                '-Wall',
-                '-Wextra',
-                '-Wpedantic',
-                '-isystem', '/opt/homebrew/opt/gcc/include/c++/15',
-                '-isystem', '/opt/homebrew/opt/gcc/include/c++/15/aarch64-apple-darwin24',
-                '-isystem', '/opt/homebrew/opt/gcc/include/c++/15/backward',
-                '-isystem', '/opt/homebrew/opt/gcc/lib/gcc/current/gcc/aarch64-apple-darwin24/15/include',
-                '-isystem', '/opt/homebrew/opt/gcc/lib/gcc/current/gcc/aarch64-apple-darwin24/15/include-fixed',
-                '--gcc-toolchain=/opt/homebrew/opt/gcc',
-              },
+                fallbackFlags = linux_fallback_flags or { '-std=gnu++20' },
               usePlaceholders = true,
               completeUnimported = true,
               clangdFileStatus = true,
