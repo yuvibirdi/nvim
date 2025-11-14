@@ -119,7 +119,7 @@ return {
 
         local full_cmd
         if run_cmd then
-          full_cmd = string.format('cd %s && %s && echo "\n--- Running ---" && %s', shell_dir, compile_cmd, run_cmd)
+          full_cmd = string.format('cd %s && %s && echo "" && %s && echo ""', shell_dir, compile_cmd, run_cmd)
         else
           full_cmd = string.format('cd %s && %s', shell_dir, compile_cmd)
         end
