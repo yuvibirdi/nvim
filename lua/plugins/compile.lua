@@ -15,34 +15,89 @@ return {
         },
       })
 
+      -- Resolve toolchain per platform
+      local function detect_cpp_compiler()
+        local prefer = { 'g++-15', 'g++-14', 'g++-13', 'g++-12', 'g++-11', 'g++-10', 'g++-9', 'g++' }
+        for _, bin in ipairs(prefer) do
+          if vim.fn.executable(bin) == 1 then
+            return bin
+          end
+        end
+        return 'g++'
+      end
+
+      local function build_cpp_flags()
+        local uname = vim.loop.os_uname().sysname
+        if uname == 'Darwin' then
+          return table.concat({
+            '-D_GLIBCXX_DEBUG',
+            '-D_GLIBCXX_DEBUG_PEDANTIC',
+            '-std=gnu++20',
+            '-I/usr/local/include/',
+            '-Wall', '-Wextra', '-Wshadow', '-Wconversion', '-Wfloat-equal', '-Wduplicated-cond', '-Wlogical-op',
+            '-DLOCAL',
+            '-Wl,-stack_size,0x10000000',
+            '-g',
+          }, ' ')
+        else
+          return table.concat({
+            '-std=gnu++20',
+            '-O2',
+            '-pipe',
+            '-Wall', '-Wextra', '-Wshadow', '-Wconversion',
+            '-DLOCAL',
+            '-g',
+          }, ' ')
+        end
+      end
+
+      local function detect_c_compiler()
+        local prefer = { 'gcc-14', 'gcc-13', 'gcc-12', 'gcc-11', 'gcc-10', 'gcc-9', 'gcc' }
+        for _, bin in ipairs(prefer) do
+          if vim.fn.executable(bin) == 1 then
+            return bin
+          end
+        end
+        return 'gcc'
+      end
+
+      local function build_c_flags()
+        return table.concat({ '-std=c11', '-O2', '-Wall', '-Wextra', '-g' }, ' ')
+      end
+
       -- Quick compile commands based on filetype
       local function compile_current_file()
         local filetype = vim.bo.filetype
         local filepath = vim.fn.expand('%:p')
         local filename = vim.fn.expand('%:t:r')
         local dir = vim.fn.expand('%:p:h')
+        local cwd = vim.fn.shellescape(dir)
+        local path = vim.fn.shellescape(filepath)
+        local output = vim.fn.shellescape(filename)
 
-        local commands = {
-          cpp = string.format('cd %s && g++-15 -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -std=c++17 -I/usr/local/include/ -Wall -Wextra -Wshadow -Wconversion -Wfloat-equal -Wduplicated-cond -Wlogical-op -DLOCAL -Wl,-stack_size,0x10000000 -g  %s -o %s && echo "Compiled: %s"',
-            vim.fn.shellescape(dir),
-            vim.fn.shellescape(filepath),
-            vim.fn.shellescape(filename),
-            filename),
-          c = string.format('cd %s && gcc -std=c11 -Wall -O2 %s -o %s && echo "Compiled: %s"',
-            vim.fn.shellescape(dir),
-            vim.fn.shellescape(filepath),
-            vim.fn.shellescape(filename),
-            filename),
-          tex = string.format('cd %s && pdflatex -interaction=nonstopmode %s',
-            vim.fn.shellescape(dir),
-            vim.fn.shellescape(filepath)),
-          markdown = string.format('cd %s && pandoc %s -o %s.pdf',
-            vim.fn.shellescape(dir),
-            vim.fn.shellescape(filepath),
-            vim.fn.shellescape(filename)),
-        }
+        local cmd
+        if filetype == 'cpp' or filetype == 'cxx' then
+          cmd = string.format('cd %s && %s %s %s -o %s && echo "Compiled: %s"',
+            cwd,
+            detect_cpp_compiler(),
+            build_cpp_flags(),
+            path,
+            output,
+            filename)
+        elseif filetype == 'c' then
+          cmd = string.format('cd %s && %s %s %s -o %s && echo "Compiled: %s"',
+            cwd,
+            detect_c_compiler(),
+            build_c_flags(),
+            path,
+            output,
+            filename)
+        elseif filetype == 'tex' then
+          cmd = string.format('cd %s && pdflatex -interaction=nonstopmode %s', cwd, path)
+        elseif filetype == 'markdown' or filetype == 'md' then
+          cmd = string.format('cd %s && pandoc %s -o %s.pdf', cwd, path, output)
+        end
 
-        local cmd = commands[filetype]
         if cmd then
           overseer.run_template({ name = 'shell', params = { cmd = cmd } })
         else
