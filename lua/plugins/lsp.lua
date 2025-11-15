@@ -42,79 +42,98 @@ return {
         virtual_text = false,
       })
 
-      local function trim(str)
-        return (str or ''):gsub('^%s+', ''):gsub('%s+$', '')
-      end
-
-      local function linux_cpp_fallback_flags()
+      local function linux_clangd_config()
         if vim.loop.os_uname().sysname ~= 'Linux' then
           return nil
         end
 
-        if vim.fn.executable('g++') == 0 then
-          return { '-std=gnu++20' }
+        local function first_line(cmd)
+          local output = vim.fn.systemlist(cmd)
+          if type(output) == 'table' and output[1] and output[1] ~= '' then
+            return vim.fn.trim(output[1])
+          end
         end
 
-        local version = trim(vim.fn.system('g++ -dumpfullversion 2>/dev/null'))
-        if version == '' then
-          version = trim(vim.fn.system('g++ -dumpversion'))
+        local function add_isystem(list, path)
+          if path and path ~= '' and vim.fn.isdirectory(path) == 1 then
+            table.insert(list, '-isystem')
+            table.insert(list, path)
+          end
         end
 
-        local target = trim(vim.fn.system('g++ -print-multiarch 2>/dev/null'))
-        if target == '' then
-          target = trim(vim.fn.system('g++ -dumpmachine'))
+        local gcc_version = first_line('g++ -dumpfullversion -dumpversion') or first_line('g++ -dumpversion')
+        local multiarch = first_line('g++ -print-multiarch') or first_line('g++ -dumpmachine')
+        local gcc_include = first_line('g++ -print-file-name=include')
+
+        local fallback_flags = {
+          '-std=gnu++20',
+          '-Wall',
+          '-Wextra',
+          '-Wconversion',
+          '-Wshadow',
+          '-DLOCAL',
+        }
+
+        add_isystem(fallback_flags, '/usr/include')
+        add_isystem(fallback_flags, '/usr/local/include')
+
+        if gcc_include then
+          add_isystem(fallback_flags, gcc_include)
         end
 
-        local function path_exists(path)
-          return path ~= '' and vim.fn.isdirectory(path) == 1
+        if gcc_version then
+          add_isystem(fallback_flags, string.format('/usr/include/c++/%s', gcc_version))
+          if multiarch and multiarch ~= '' then
+            add_isystem(fallback_flags, string.format('/usr/include/%s/c++/%s', multiarch, gcc_version))
+            add_isystem(fallback_flags, string.format('/usr/lib/gcc/%s/%s/include', multiarch, gcc_version))
+            add_isystem(fallback_flags, string.format('/usr/lib/gcc/%s/%s/include-fixed', multiarch, gcc_version))
+          end
         end
 
-        local include_paths = {}
-        local base = '/usr/include/c++/' .. version
-        if path_exists(base) then table.insert(include_paths, base) end
-
-        local target_base = string.format('/usr/include/%s/c++/%s', target, version)
-        if path_exists(target_base) then table.insert(include_paths, target_base) end
-
-        local gcc_include = string.format('/usr/lib/gcc/%s/%s/include', target, version)
-        if path_exists(gcc_include) then table.insert(include_paths, gcc_include) end
-
-        local gcc_fixed = string.format('/usr/lib/gcc/%s/%s/include-fixed', target, version)
-        if path_exists(gcc_fixed) then table.insert(include_paths, gcc_fixed) end
-
-        local fallback = { '-std=gnu++20', '-Wall', '-Wextra', '-Wconversion' }
-        for _, path in ipairs(include_paths) do
-          table.insert(fallback, '-isystem')
-          table.insert(fallback, path)
-        end
-
-        return fallback
+        return {
+          cmd = {
+            'clangd',
+            '--background-index',
+            '--clang-tidy',
+            '--completion-style=detailed',
+            '--function-arg-placeholders',
+            '--fallback-style=llvm',
+            '--header-insertion=never',
+            '--query-driver=/usr/bin/g++*,/usr/bin/clang++*',
+          },
+          init_options = {
+            fallbackFlags = fallback_flags,
+            usePlaceholders = true,
+            completeUnimported = true,
+            clangdFileStatus = true,
+          },
+        }
       end
 
-      local linux_fallback_flags = linux_cpp_fallback_flags()
+      local function default_clangd_config()
+        return {
+          cmd = {
+            'clangd',
+            '--background-index',
+            '--clang-tidy',
+            '--completion-style=detailed',
+            '--function-arg-placeholders',
+            '--fallback-style=llvm',
+          },
+          init_options = {
+            fallbackFlags = { '-std=gnu++20' },
+            usePlaceholders = true,
+            completeUnimported = true,
+            clangdFileStatus = true,
+          },
+        }
+      end
+
+      local clangd_config = linux_clangd_config() or default_clangd_config()
 
       -- Configure LSP servers
       local servers = {
-        {
-          'clangd',
-          {
-            cmd = {
-              'clangd',
-              '--background-index',
-              '--clang-tidy',
-              '--header-insertion=iwyu',
-              '--completion-style=detailed',
-              '--function-arg-placeholders',
-              '--fallback-style=llvm',
-            },
-            init_options = {
-                fallbackFlags = linux_fallback_flags or { '-std=gnu++20' },
-              usePlaceholders = true,
-              completeUnimported = true,
-              clangdFileStatus = true,
-            },
-          },
-        },
+        { 'clangd', clangd_config },
         {
           'texlab',
           {
