@@ -14,6 +14,26 @@ return {
 
       local capabilities = require('cmp_nvim_lsp').default_capabilities()
 
+      local function resolve_clangd()
+        local env_path = vim.env.CLANGD_PATH or vim.env.CLANGD
+        if env_path and env_path ~= '' and vim.fn.executable(env_path) == 1 then
+          return env_path
+        end
+
+        local path = vim.fn.exepath('clangd')
+        if path and path ~= '' then
+          return path
+        end
+
+        local local_install = vim.fn.expand('~/.local/bin/clangd')
+        if vim.fn.executable(local_install) == 1 then
+          return local_install
+        end
+
+        vim.notify('[lsp] clangd binary not found. Run scripts/install_clangd.sh or set CLANGD_PATH.', vim.log.levels.ERROR)
+        return nil
+      end
+
       local function detect_compilers()
         local bins = { 'clang++', 'clang', 'g++', 'c++' }
         local seen = {}
@@ -26,6 +46,48 @@ return {
           end
         end
         return paths
+      end
+
+      local function add_isystem(flags, path)
+        if path and path ~= '' and vim.fn.isdirectory(path) == 1 then
+          table.insert(flags, '-isystem')
+          table.insert(flags, path)
+        end
+      end
+
+      local function linux_stdlib_dirs()
+        if vim.loop.os_uname().sysname ~= 'Linux' then
+          return {}
+        end
+
+        local dirs = {}
+        local function first_line(cmd)
+          local output = vim.fn.systemlist(cmd)
+          if type(output) == 'table' and output[1] and output[1] ~= '' then
+            return vim.fn.trim(output[1])
+          end
+        end
+
+        local version = first_line('g++ -dumpfullversion -dumpversion') or first_line('g++ -dumpversion')
+        local triple = first_line('g++ -print-multiarch') or first_line('g++ -dumpmachine')
+        local gcc_include = first_line('g++ -print-file-name=include')
+
+        if gcc_include then
+          table.insert(dirs, gcc_include)
+        end
+        if version then
+          table.insert(dirs, string.format('/usr/include/c++/%s', version))
+          if triple and triple ~= '' then
+            table.insert(dirs, string.format('/usr/include/%s/c++/%s', triple, version))
+            table.insert(dirs, string.format('/usr/lib/gcc/%s/%s/include', triple, version))
+            table.insert(dirs, string.format('/usr/lib/gcc/%s/%s/include-fixed', triple, version))
+          end
+        end
+
+        table.insert(dirs, '/usr/include')
+        table.insert(dirs, '/usr/local/include')
+
+        return dirs
       end
 
       local function extract_include_dirs(output)
@@ -72,31 +134,31 @@ return {
 
           if ok and result then
             for _, dir in ipairs(result) do
-              table.insert(flags, '-isystem')
-              table.insert(flags, dir)
+              add_isystem(flags, dir)
             end
           end
+        end
+
+        for _, dir in ipairs(linux_stdlib_dirs()) do
+          add_isystem(flags, dir)
         end
 
         fallback_flag_cache = flags
         return flags
       end
 
-      local drivers = {}
-      for _, compiler in ipairs(detect_compilers()) do
-        local dir = vim.fn.fnamemodify(compiler, ':h')
-        if dir ~= '' then
-          table.insert(drivers, dir .. '/clang*')
-          table.insert(drivers, dir .. '/clang++*')
-          table.insert(drivers, dir .. '/g++*')
-        end
-      end
+      local drivers = detect_compilers()
       if #drivers == 0 then
-        drivers = { '/usr/bin/clang*', '/usr/bin/clang++*', '/usr/bin/g++*' }
+        drivers = { '/usr/bin/clang', '/usr/bin/clang++', '/usr/bin/g++' }
+      end
+
+      local clangd_binary = resolve_clangd()
+      if not clangd_binary then
+        return
       end
 
       local clangd_cmd = {
-        'clangd',
+        clangd_binary,
         '--background-index',
         '--clang-tidy',
         '--completion-style=detailed',
