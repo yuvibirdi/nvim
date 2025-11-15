@@ -132,9 +132,24 @@ return {
         })
       end
 
-      local function root_dir(fname)
-        return vim.fs.root(fname, { 'compile_commands.json', '.clangd', '.git' })
-          or vim.fs.dirname(fname)
+      local function root_dir(arg)
+        local fname = arg
+        if type(arg) == 'number' then
+          fname = vim.api.nvim_buf_get_name(arg)
+        end
+        if not fname or fname == '' then
+          fname = vim.api.nvim_buf_get_name(0)
+        end
+        if not fname or fname == '' then
+          return vim.loop.cwd()
+        end
+
+        local root = vim.fs.root(fname, { 'compile_commands.json', '.clangd', '.git' })
+        if root then
+          return root
+        end
+
+        return vim.fs.dirname(fname) or vim.loop.cwd()
       end
 
       vim.lsp.config('clangd', {

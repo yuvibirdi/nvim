@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLANGD_VERSION=${CLANGD_VERSION:-"18.1.8"}
+CLANGD_VERSION=${CLANGD_VERSION:-"21.1.0"}
 ARCHIVE_NAME="clangd-linux-${CLANGD_VERSION}.zip"
 CLANGD_URL="https://github.com/clangd/clangd/releases/download/${CLANGD_VERSION}/${ARCHIVE_NAME}"
 PREFIX=${1:-"${HOME}/.local"}
@@ -24,7 +24,7 @@ for dep in curl unzip; do
     echo "Missing dependency: $dep. Install it (e.g. sudo apt install $dep) and rerun." >&2
     exit 1
   fi
-fi
+done
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
