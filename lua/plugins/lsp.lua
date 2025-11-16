@@ -1,12 +1,10 @@
 return {
-  -- LSP Configuration
+  -- LSP Configuration (for the configs in lsp/ folder)
   {
     "neovim/nvim-lspconfig",
     config = function()
-      local lspconfig = require("lspconfig")
-      
-      -- clangd setup with bits/stdc++.h support
-      lspconfig.clangd.setup({
+      -- Modern way: configure clangd using vim.lsp.config
+      vim.lsp.config('clangd', {
         cmd = {
           "clangd",
           "--background-index",
@@ -15,19 +13,22 @@ return {
           "--completion-style=detailed",
           "--function-arg-placeholders",
           "--fallback-style=llvm",
-          -- This is KEY for bits/stdc++.h on Ubuntu
+          -- KEY for bits/stdc++.h on Ubuntu
           "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/bin/c++",
         },
         filetypes = { "c", "cpp", "objc", "objcpp", "cuda" },
-        root_dir = lspconfig.util.root_pattern(
+        root_markers = {
           "compile_commands.json",
           "compile_flags.txt",
-          ".git"
-        ),
+          ".git",
+        },
         capabilities = require("cmp_nvim_lsp").default_capabilities(),
       })
 
-      -- Keybindings for LSP
+      -- Enable clangd
+      vim.lsp.enable('clangd')
+
+      -- LSP keybindings
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("UserLspConfig", {}),
         callback = function(ev)
