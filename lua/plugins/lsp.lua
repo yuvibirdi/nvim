@@ -1,48 +1,86 @@
 return {
-  -- LSP Configuration (for the configs in lsp/ folder)
   {
     "neovim/nvim-lspconfig",
     config = function()
-      -- Modern way: configure clangd using vim.lsp.config
+      -- Detect OS
+      local is_mac = vim.fn.has("macunix") == 1
+      local is_linux = vim.fn.has("unix") == 1 and not is_mac
+
+      -- Platform-specific clangd args
+      local clangd_cmd = {
+        "clangd",
+        "--background-index",
+        "--clang-tidy",
+        "--header-insertion=iwyu",
+        "--completion-style=detailed",
+        "--function-arg-placeholders",
+        "--fallback-style=llvm",
+      }
+
+      local init_opts = {}
+
+      if is_linux then
+        -- Ubuntu/Linux: Query g++ for system headers
+        table.insert(clangd_cmd, "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/bin/c++")
+        
+        -- Fallback flags for Ubuntu - explicitly include the g++ headers
+        init_opts.fallbackFlags = {
+          "-I/usr/include/x86_64-linux-gnu/c++/13",
+          "-I/usr/include/c++/13",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include",
+        }
+      elseif is_mac then
+        -- macOS: Use Xcode's headers
+        -- Uncomment if you have Homebrew g++:
+        table.insert(clangd_cmd, "--query-driver=/opt/homebrew/bin/g++-*")
+        init_opts.fallbackFlags = {
+          "-I/usr/local/include",
+          "-I/opt/homebrew/include/c++/15/"
+        }
+
+      end
+
       vim.lsp.config('clangd', {
-        cmd = {
-          "clangd",
-          "--background-index",
-          "--clang-tidy",
-          "--header-insertion=iwyu",
-          "--completion-style=detailed",
-          "--function-arg-placeholders",
-          "--fallback-style=llvm",
-          -- KEY for bits/stdc++.h on Ubuntu
-          "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/bin/c++",
-        },
+        cmd = clangd_cmd,
         filetypes = { "c", "cpp", "objc", "objcpp", "cuda" },
         root_markers = {
           "compile_commands.json",
           "compile_flags.txt",
           ".git",
         },
+        init_options = init_opts,
         capabilities = require("cmp_nvim_lsp").default_capabilities(),
       })
 
-      -- Enable clangd
       vim.lsp.enable('clangd')
 
       -- LSP keybindings
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("UserLspConfig", {}),
         callback = function(ev)
-          local opts = { buffer = ev.buf }
-          vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
-          vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
-          vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
-          vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, opts)
-          vim.keymap.set("n", "<space>rn", vim.lsp.buf.rename, opts)
-          vim.keymap.set("n", "<space>ca", vim.lsp.buf.code_action, opts)
-          vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
-          vim.keymap.set("n", "<space>f", function()
-            vim.lsp.buf.format({ async = true })
-          end, opts)
+          local opts = { noremap = true, silent = true }
+          local bufnr = ev.buf
+          
+          -- Navigation
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", opts)
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "K", "<cmd>lua vim.lsp.buf.hover()<CR>", opts)
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "gi", "<cmd>lua vim.lsp.buf.implementation()<CR>", opts)
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", opts)
+          
+          -- Actions
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "<space>rn", "<cmd>lua vim.lsp.buf.rename()<CR>", opts)
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "<space>ca", "<cmd>lua vim.lsp.buf.code_action()<CR>", opts)
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "<space>f", "<cmd>lua vim.lsp.buf.format({ async = true })<CR>", opts)
+          
+          -- Diagnostics (ERRORS!)
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "<space>e", "<cmd>lua vim.diagnostic.open_float()<CR>", opts)
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "[d", "<cmd>lua vim.diagnostic.goto_prev()<CR>", opts)
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "]d", "<cmd>lua vim.diagnostic.goto_next()<CR>", opts)
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "<space>q", "<cmd>lua vim.diagnostic.setloclist()<CR>", opts)
+          
+          -- Signature help
+          vim.api.nvim_buf_set_keymap(bufnr, "n", "<C-k>", "<cmd>lua vim.lsp.buf.signature_help()<CR>", opts)
         end,
       })
     end,
