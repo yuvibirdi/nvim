@@ -33,18 +33,15 @@ return {
         }
       elseif is_mac then
         local xcode_sdk = vim.fn.trim(vim.fn.system("xcrun --show-sdk-path"))
-        if vim.v.shell_error == 0 and xcode_xdk ~= "" then
+        if vim.v.shell_error == 0 and xcode_sdk ~= "" then  -- FIXED TYPO HERE
           init_opts.fallbackFlags = {
             "-isystem" .. xcode_sdk .. "/usr/include/c++/v1",
             "-isystem" .. xcode_sdk .. "/usr/include",
             "-isysroot" .. xcode_sdk,
             "-std=c++17",
-            --"-I/usr/local/include",
-            --"-I/opt/homebrew/include/c++/15/"
           }
         end
         table.insert(clangd_cmd, "--query-driver=/opt/homebrew/bin/g++-*")
-
       end
 
       vim.lsp.config('clangd', {
@@ -103,6 +100,9 @@ return {
       "saadparwaiz1/cmp_luasnip",
     },
     config = function()
+      -- CRITICAL: Set completeopt BEFORE cmp.setup()
+      vim.opt.completeopt = { "menu", "menuone", "noselect" }
+      
       local cmp = require("cmp")
       local luasnip = require("luasnip")
 
@@ -112,6 +112,19 @@ return {
             luasnip.lsp_expand(args.body)
           end,
         },
+        
+        -- ADD THIS: Configure completion behavior
+        completion = {
+          completeopt = "menu,menuone,noselect",
+          keyword_length = 1,  -- Start suggesting after 1 character
+        },
+        
+        -- ADD THIS: Performance settings
+        performance = {
+          debounce = 150,
+          throttle = 60,
+        },
+        
         mapping = cmp.mapping.preset.insert({
           ["<C-b>"] = cmp.mapping.scroll_docs(-4),
           ["<C-f>"] = cmp.mapping.scroll_docs(4),
@@ -137,12 +150,36 @@ return {
             end
           end, { "i", "s" }),
         }),
+        
         sources = cmp.config.sources({
-          { name = "nvim_lsp" },
-          { name = "luasnip" },
+          { name = "nvim_lsp", priority = 1000 },  -- ADD PRIORITY
+          { name = "luasnip", priority = 750 },
         }, {
-          { name = "buffer" },
-          { name = "path" },
+          { name = "buffer", priority = 500 },
+          { name = "path", priority = 250 },
+        }),
+        
+        -- ADD THIS: Formatting to see where completions come from
+        formatting = {
+          format = function(entry, vim_item)
+            vim_item.menu = ({
+              nvim_lsp = "[LSP]",
+              luasnip = "[Snip]",
+              buffer = "[Buf]",
+              path = "[Path]",
+            })[entry.source.name]
+            return vim_item
+          end,
+        },
+      })
+      
+      -- ADD THIS: Set up LSP-specific completion for C++
+      cmp.setup.filetype({ "cpp", "c" }, {
+        sources = cmp.config.sources({
+          { name = "nvim_lsp", priority = 1000, keyword_length = 1 },
+          { name = "luasnip", priority = 750 },
+        }, {
+          { name = "buffer", priority = 500 },
         }),
       })
     end,
