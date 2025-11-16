@@ -27,8 +27,9 @@ return {
         init_opts.fallbackFlags = {
           "-std=c++17",
           "-I/usr/include/c++/13",
-          "-I/usr/include/x86_64-linux-gnu/c++/13", 
           "-I/usr/lib/gcc/x86_64-linux-gnu/13", 
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include", 
+          "-I/usr/include/x86_64-linux-gnu/c++/13", 
           "-I/usr/include",
           "-I/usr/include/x86_64-linux-gnu",
         }
