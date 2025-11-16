@@ -27,9 +27,9 @@ return {
         init_opts.fallbackFlags = {
           "-std=c++17",
           "-stdlib=libstdc++",
-          "-I/usr/include/c++/13",
-          "-I/usr/include/x86_64-linux-gnu/c++/13",
-          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-isystem/usr/include/c++/13",
+          "-isystem/usr/include/x86_64-linux-gnu/c++/13",
+          "-isystem/usr/lib/gcc/x86_64-linux-gnu/13/include",
         }
       elseif is_mac then
         local xcode_sdk = vim.fn.trim(vim.fn.system("xcrun --show-sdk-path"))
