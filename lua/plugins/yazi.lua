@@ -29,9 +29,18 @@ return {
   ---@type YaziConfig | {}
   opts = {
     -- if you want to open yazi instead of netrw, see below for more info
-    open_for_directories = false,
+    open_for_directories = true,
     keymaps = {
       show_help = "<f1>",
+    },
+    hooks = {
+      yazi_closed_successfully = function(chosen_file, config, state)
+        if chosen_file then
+          local dir = vim.fn.fnamemodify(chosen_file, ":h")
+          vim.cmd("cd " .. dir)
+          vim.notify("Changed directory to: " .. dir, vim.log.levels.INFO)
+        end
+      end,
     },
   },
   -- 👇 if you use `open_for_directories=true`, this is recommended
@@ -52,5 +61,16 @@ return {
         vim.env.PATH = local_bin .. ":" .. current_path
       end
     end
+    vim.api.nvim_create_autocmd("VimEnter", {
+      callback = function()
+        local arg = vim.fn.argv(0)
+        if arg ~= "" and vim.fn.isdirectory(arg) == 1 then
+          vim.cmd("cd " .. arg)
+          vim.defer_fn(function()
+            vim.cmd("Yazi")
+          end, 10)
+        end
+      end,
+    })
   end,
 }

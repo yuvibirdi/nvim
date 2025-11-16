@@ -7,14 +7,14 @@ return {
       require('toggleterm').setup({
         size = 20,
         direction = 'horizontal',
-        close_on_exit = false,
+        close_on_exit = true,
         persist_mode = true,
       })
 
       local Terminal = require('toggleterm.terminal').Terminal
-      local compile_term = Terminal:new({
+      _G.compile_term = Terminal:new({
         direction = 'horizontal',
-        close_on_exit = false,
+        close_on_exit = true,
         hidden = true,
         display_name = 'Compile',
       })
@@ -45,7 +45,7 @@ return {
           return table.concat({
             '-D_GLIBCXX_DEBUG',
             '-D_GLIBCXX_DEBUG_PEDANTIC',
-            '-std=gnu++20',
+            '-std=c++17',
             '-I/usr/local/include/',
             '-Wall', '-Wextra', '-Wshadow', '-Wconversion', '-Wfloat-equal', '-Wduplicated-cond', '-Wlogical-op',
             '-DLOCAL',
@@ -54,7 +54,7 @@ return {
           }, ' ')
         else
           return table.concat({
-            '-std=gnu++20',
+            '-std=c++17',
             '-O2',
             '-pipe',
             '-Wall', '-Wextra', '-Wshadow', '-Wconversion',
@@ -128,9 +128,11 @@ return {
       end
 
       vim.keymap.set('n', '<leader>cc', compile_current_file, { desc = 'Compile current file' })
+      -- This is your existing keymap for Normal mode
       vim.keymap.set('n', '<leader>v', function()
         compile_term:toggle()
       end, { desc = 'Toggle compile terminal' })
+      vim.keymap.set('t', '<leader>v', '<C-\\><C-n><cmd>lua _G.compile_term:toggle()<CR>', { desc = 'Toggle compile terminal' })
     end,
   },
 }

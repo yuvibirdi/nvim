@@ -32,16 +32,19 @@ return {
           "-isystem/usr/lib/gcc/x86_64-linux-gnu/13/include",
         }
       elseif is_mac then
-        local xcode_sdk = vim.fn.trim(vim.fn.system("xcrun --show-sdk-path"))
-        if vim.v.shell_error == 0 and xcode_sdk ~= "" then  -- FIXED TYPO HERE
+        table.insert(clangd_cmd, "--query-driver=/opt/homebrew/bin/g++-15")
+        -- local xcode_sdk = vim.fn.trim(vim.fn.system("xcrun --show-sdk-path"))
+        -- if vim.v.shell_error == 0 and xcode_sdk ~= "" then  -- FIXED TYPO HERE
           init_opts.fallbackFlags = {
-            "-isystem" .. xcode_sdk .. "/usr/include/c++/v1",
-            "-isystem" .. xcode_sdk .. "/usr/include",
-            "-isysroot" .. xcode_sdk,
             "-std=c++17",
+        --     "-isystem" .. xcode_sdk .. "/usr/include/c++/v1",
+        --     "-isystem" .. xcode_sdk .. "/usr/include",
+            "-isystem/opt/homebrew/include/c++/15/aarch64-apple-darwin24",
+            "-D_GLIBCXX_HOSTED=1"
+        --     "-isysroot" .. xcode_sdk,
+        --     "-std=c++17",
           }
-        end
-        table.insert(clangd_cmd, "--query-driver=/opt/homebrew/bin/g++-*")
+        -- end
       end
 
       vim.lsp.config('clangd', {
