@@ -26,10 +26,8 @@ return {
         -- Fallback flags for Ubuntu - explicitly include the g++ headers
         init_opts.fallbackFlags = {
           "-std=c++17",
-          "-I/usr/include/c++",
-          "-I/usr/include/x86_64-linux-gnu",
-          "-I/usr/lib/gcc/x86_64-linux-gnu", 
-          "-I/usr/include/x86_64-linux-gnu/c++", 
+          "-stdlib=libstdc++"
+          "-I/usr/include/x86_64-linux-gnu/c++/13",
         }
       elseif is_mac then
         local xcode_sdk = vim.fn.trim(vim.fn.system("xcrun --show-sdk-path"))
