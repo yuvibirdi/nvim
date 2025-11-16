@@ -26,7 +26,7 @@ return {
         -- Fallback flags for Ubuntu - explicitly include the g++ headers
         init_opts.fallbackFlags = {
           "-std=c++17",
-          "-stdlib=libstdc++"
+          "-stdlib=libstdc++",
           "-I/usr/include/x86_64-linux-gnu/c++/13",
         }
       elseif is_mac then
