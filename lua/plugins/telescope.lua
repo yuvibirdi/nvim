@@ -57,12 +57,11 @@ return {
       local find_cmd
       if vim.fn.executable('fd') == 1 then
         find_cmd = string.format(
-          'fd --type f --hidden --absolute-path --max-depth 6 ' ..
-          '--exclude .git --exclude node_modules --exclude Library ' ..
-          '--exclude .cache --exclude .cargo --exclude .npm --exclude .Trash ' ..
-          '--exclude .local/share --exclude .mozilla --exclude .vscode ' ..
-          '--exclude Downloads --exclude Movies --exclude Music --exclude Pictures ' ..
-          '--exclude Documents . %s 2>/dev/null',
+          'fd --type f --hidden --absolute-path --max-depth 20 ' ..
+          '--exclude .git --exclude node_modules ' ..
+          '--exclude .mozilla ' ..
+          '--exclude Music --exclude Pictures ' ..
+          '--exclude Movies . %s 2>/dev/null',
           home_dir
         )
       elseif vim.fn.executable('rg') == 1 then
@@ -120,7 +119,6 @@ return {
           'node_modules/.*',
           '%.DS_Store',
           'Library/.*',
-          '%.cache/.*',
         },
         path_display = function(opts, path)
           if path:sub(1, #home_dir) == home_dir then

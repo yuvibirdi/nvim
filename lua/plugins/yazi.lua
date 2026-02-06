@@ -33,15 +33,6 @@ return {
     keymaps = {
       show_help = "<f1>",
     },
-    hooks = {
-      yazi_closed_successfully = function(chosen_file, config, state)
-        if chosen_file then
-          local dir = vim.fn.fnamemodify(chosen_file, ":h")
-          vim.cmd("cd " .. dir)
-          vim.notify("Changed directory to: " .. dir, vim.log.levels.INFO)
-        end
-      end,
-    },
   },
   -- 👇 if you use `open_for_directories=true`, this is recommended
   init = function()
@@ -65,9 +56,10 @@ return {
       callback = function()
         local arg = vim.fn.argv(0)
         if arg ~= "" and vim.fn.isdirectory(arg) == 1 then
-          vim.cmd("cd " .. arg)
+          local abs_path = vim.fn.fnamemodify(arg, ":p")
+          vim.cmd.cd(abs_path)
           vim.defer_fn(function()
-            vim.cmd("Yazi")
+            vim.cmd("Yazi cwd")
           end, 10)
         end
       end,

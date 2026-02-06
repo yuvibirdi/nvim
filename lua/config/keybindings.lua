@@ -42,3 +42,14 @@ vim.keymap.set("n", "<space>ww", "<C-w>w", vim.tbl_extend("force", base_opts, { 
 vim.keymap.set("n", "<space>wr", "<C-w>r", vim.tbl_extend("force", base_opts, { desc = "Rotate Windows" }))
 vim.keymap.set("n", "<space>wx", "<C-w>x", vim.tbl_extend("force", base_opts, { desc = "Exchange Windows" }))
 vim.keymap.set("n", "<space>wT", "<C-w>T", vim.tbl_extend("force", base_opts, { desc = "Move to New Tab" }))
+
+-- Tmux Navigator (seamless navigation between vim and tmux panes)
+-- vim.keymap.set("n", "<C-h>", "<cmd>TmuxNavigateLeft<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Left (Vim/Tmux)" }))
+-- vim.keymap.set("n", "<C-j>", "<cmd>TmuxNavigateDown<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Down (Vim/Tmux)" }))
+-- vim.keymap.set("n", "<C-k>", "<cmd>TmuxNavigateUp<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Up (Vim/Tmux)" }))
+-- vim.keymap.set("n", "<C-l>", "<cmd>TmuxNavigateRight<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Right (Vim/Tmux)" }))
+-- vim.keymap.set("n", "<C-\\>", "<cmd>TmuxNavigatePrevious<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Previous (Vim/Tmux)" }))
+
+-- Python venv selection
+vim.keymap.set("n", "<space>es", "<cmd>VenvSelect<cr>", vim.tbl_extend("force", base_opts, { desc = "Select Python Venv" }))
+vim.keymap.set("n", "<space>ec", "<cmd>VenvSelectCached<cr>", vim.tbl_extend("force", base_opts, { desc = "Select Cached Venv" }))

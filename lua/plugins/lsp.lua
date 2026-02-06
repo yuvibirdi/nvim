@@ -61,6 +61,52 @@ return {
 
       vim.lsp.enable('clangd')
 
+      -- Python LSP (ruff - Rust-based)
+      vim.lsp.config('ruff', {
+        cmd = { "ruff", "server" },
+        filetypes = { "python" },
+        root_markers = {
+          "pyproject.toml",
+          "ruff.toml",
+          ".ruff.toml",
+          "setup.py",
+          "setup.cfg",
+          "requirements.txt",
+          ".git",
+        },
+        settings = {
+          ruff = {
+            lint = {
+              enable = true,
+            },
+            format = {
+              enable = true,
+            },
+          },
+        },
+        capabilities = require("cmp_nvim_lsp").default_capabilities(),
+      })
+
+      vim.lsp.enable('ruff')
+
+      -- Zuban for Python autocomplete (Jedi successor, Rust-based)
+      -- NOTE: Activate your conda/venv BEFORE launching Neovim for zuban to find packages
+      vim.lsp.config('zuban', {
+        cmd = { "zuban", "server" },
+        filetypes = { "python" },
+        root_markers = {
+          "pyproject.toml",
+          "mypy.ini",
+          "setup.py",
+          "setup.cfg",
+          "requirements.txt",
+          ".git",
+        },
+        capabilities = require("cmp_nvim_lsp").default_capabilities(),
+      })
+
+      vim.lsp.enable('zuban')
+
       -- LSP keybindings
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("UserLspConfig", {}),
