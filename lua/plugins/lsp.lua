@@ -33,18 +33,31 @@ return {
         }
       elseif is_mac then
         table.insert(clangd_cmd, "--query-driver=/opt/homebrew/bin/g++-15")
-        -- local xcode_sdk = vim.fn.trim(vim.fn.system("xcrun --show-sdk-path"))
-        -- if vim.v.shell_error == 0 and xcode_sdk ~= "" then  -- FIXED TYPO HERE
+
+        -- Dynamically detect GCC include paths
+        local gcc_base = vim.fn.trim(vim.fn.system("g++-15 -print-file-name=include"))
+        local gcc_version_output = vim.fn.trim(vim.fn.system("g++-15 -dumpversion"))
+        local gcc_target = vim.fn.trim(vim.fn.system("g++-15 -dumpmachine"))
+
+        if vim.v.shell_error == 0 and gcc_base ~= "" then
+          -- Build dynamic include paths
+          local gcc_root = vim.fn.fnamemodify(gcc_base, ":h:h")
+          local cpp_includes = gcc_root .. "/include/c++/" .. gcc_version_output
+
           init_opts.fallbackFlags = {
             "-std=c++17",
-        --     "-isystem" .. xcode_sdk .. "/usr/include/c++/v1",
-        --     "-isystem" .. xcode_sdk .. "/usr/include",
-            "-isystem/opt/homebrew/include/c++/15/aarch64-apple-darwin24",
+            "-isystem" .. cpp_includes,
+            "-isystem" .. cpp_includes .. "/" .. gcc_target,
+            "-isystem" .. cpp_includes .. "/backward",
             "-D_GLIBCXX_HOSTED=1"
-        --     "-isysroot" .. xcode_sdk,
-        --     "-std=c++17",
           }
-        -- end
+        else
+          -- Fallback to reasonable defaults if detection fails
+          init_opts.fallbackFlags = {
+            "-std=c++17",
+            "-D_GLIBCXX_HOSTED=1"
+          }
+        end
       end
 
       vim.lsp.config('clangd', {
