@@ -43,13 +43,24 @@ vim.keymap.set("n", "<space>wr", "<C-w>r", vim.tbl_extend("force", base_opts, { 
 vim.keymap.set("n", "<space>wx", "<C-w>x", vim.tbl_extend("force", base_opts, { desc = "Exchange Windows" }))
 vim.keymap.set("n", "<space>wT", "<C-w>T", vim.tbl_extend("force", base_opts, { desc = "Move to New Tab" }))
 
--- Tmux Navigator (seamless navigation between vim and tmux panes)
--- vim.keymap.set("n", "<C-h>", "<cmd>TmuxNavigateLeft<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Left (Vim/Tmux)" }))
--- vim.keymap.set("n", "<C-j>", "<cmd>TmuxNavigateDown<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Down (Vim/Tmux)" }))
--- vim.keymap.set("n", "<C-k>", "<cmd>TmuxNavigateUp<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Up (Vim/Tmux)" }))
--- vim.keymap.set("n", "<C-l>", "<cmd>TmuxNavigateRight<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Right (Vim/Tmux)" }))
--- vim.keymap.set("n", "<C-\\>", "<cmd>TmuxNavigatePrevious<cr>", vim.tbl_extend("force", base_opts, { desc = "Navigate Previous (Vim/Tmux)" }))
+-- Terminal in current file's directory
+vim.keymap.set("n", "<leader>v", function()
+  vim.cmd("belowright split | resize 15 | terminal")
+  vim.cmd("startinsert")
+end, vim.tbl_extend("force", base_opts, { desc = "Open Terminal" }))
+vim.keymap.set("t", "<leader>v", "<C-\\><C-n><cmd>bd!<cr>", { desc = "Close Terminal" })
+vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", { desc = "Exit Terminal Mode" })
 
--- Python venv selection
-vim.keymap.set("n", "<space>es", "<cmd>VenvSelect<cr>", vim.tbl_extend("force", base_opts, { desc = "Select Python Venv" }))
-vim.keymap.set("n", "<space>ec", "<cmd>VenvSelectCached<cr>", vim.tbl_extend("force", base_opts, { desc = "Select Cached Venv" }))
+-- Lazygit (fullscreen, floats over everything)
+vim.keymap.set("n", "<leader>gg", function()
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    width = vim.o.columns,
+    height = vim.o.lines - 1,
+    row = 0, col = 0,
+    style = "minimal",
+  })
+  vim.fn.termopen("lazygit", { on_exit = function() vim.api.nvim_buf_delete(buf, { force = true }) end })
+  vim.cmd("startinsert")
+end, vim.tbl_extend("force", base_opts, { desc = "Lazygit" }))
