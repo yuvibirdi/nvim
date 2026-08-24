@@ -1,5 +1,14 @@
+local is_linux = vim.uv.os_uname().sysname == 'Linux'
+
 return {
   'ibhagwan/fzf-lua',
+  dependencies = {
+    {
+      'junegunn/fzf',
+      build = './install --bin',
+      cond = is_linux,
+    },
+  },
   keys = {
     {
       '<leader>ff',
@@ -28,5 +37,7 @@ return {
       desc = 'Find Files',
     },
   },
-  opts = {},
+  opts = is_linux and {
+    fzf_bin = vim.fn.stdpath('data') .. '/lazy/fzf/bin/fzf',
+  } or {},
 }
