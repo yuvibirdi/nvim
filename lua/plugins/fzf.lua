@@ -18,11 +18,10 @@ return {
         local git_root = vim.fs.root(cwd, '.git')
 
         if git_root then
-          fzf.git_files({
+          fzf.files({
             cwd = git_root,
-            cmd = 'git ls-files --cached --others --exclude-standard',
+            cmd = "rg --files --hidden --no-ignore --color=never --glob '!.git'",
             file_icons = false,
-            git_icons = false,
             previewer = false,
           })
         else
