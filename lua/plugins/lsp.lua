@@ -2,6 +2,14 @@ return {
   {
     "neovim/nvim-lspconfig",
     config = function()
+      -- Treat CUDA sources/headers as the `cuda` filetype so clangd attaches.
+      vim.filetype.add({
+        extension = {
+          cu = "cuda",
+          cuh = "cuda",
+        },
+      })
+
       -- Python LSP (ruff - Rust-based)
       vim.lsp.config('ruff', {
         cmd = { "ruff", "server" },
@@ -42,6 +50,32 @@ return {
       })
 
       vim.lsp.enable('zuban')
+
+      -- C/C++/CUDA LSP (clangd — clangd is the CUDA language server)
+      vim.lsp.config('clangd', {
+        cmd = {
+          "clangd",
+          "--background-index",
+          "--clang-tidy",
+          "--header-insertion=iwyu",
+          -- Let clangd interrogate nvcc + the host compiler so it can resolve
+          -- CUDA and toolchain system headers for .cu/.cuh files (e.g. on Jetson).
+          -- Nonexistent drivers (e.g. on macOS) are ignored.
+          "--query-driver=/usr/local/cuda/bin/nvcc,/usr/bin/g++,/usr/bin/gcc,/usr/bin/clang*",
+        },
+        filetypes = { "c", "cpp", "objc", "objcpp", "cuda" },
+        root_markers = {
+          "compile_commands.json",
+          "compile_flags.txt",
+          ".clangd",
+          "CMakeLists.txt",
+          "Makefile",
+          ".git",
+        },
+        capabilities = require("cmp_nvim_lsp").default_capabilities(),
+      })
+
+      vim.lsp.enable('clangd')
 
       -- LSP keybindings
       vim.api.nvim_create_autocmd("LspAttach", {

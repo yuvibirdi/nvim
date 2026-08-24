@@ -22,11 +22,6 @@ return {
             ["<Esc>"] = actions.close,
           },
         },
-        file_ignore_patterns = {
-          '%.git/.*',
-          'node_modules/.*',
-          '%.DS_Store',
-        },
         layout_config = {
           horizontal = { preview_width = 0.6 },
           prompt_position = "top",
@@ -45,16 +40,18 @@ return {
 
     telescope.load_extension('fzf')
 
-    local function project_files()
-      local ok = pcall(builtin.git_files, { show_untracked = true })
-      if not ok then
-        builtin.find_files()
-      end
+    -- Grep the current visual selection across the project.
+    local function grep_visual()
+      local saved, saved_type = vim.fn.getreg('v'), vim.fn.getregtype('v')
+      vim.cmd('noautocmd normal! "vy')
+      local text = vim.fn.getreg('v'):gsub('\n', ' ')
+      vim.fn.setreg('v', saved, saved_type)
+      builtin.grep_string({ search = vim.trim(text) })
     end
 
-    vim.keymap.set('n', '<leader>ff', project_files, { desc = 'Find Files' })
     vim.keymap.set('n', '<leader>fr', builtin.oldfiles, { desc = 'Recent Files' })
     vim.keymap.set('n', '<leader>fg', builtin.live_grep, { desc = 'Grep Files' })
+    vim.keymap.set('x', '<leader>fg', grep_visual, { desc = 'Grep Selection' })
     vim.keymap.set('n', '<leader>fb', builtin.buffers, { desc = 'List Buffers' })
     vim.keymap.set('n', '<leader>gc', builtin.git_commits, { desc = 'Git Commits' })
     vim.keymap.set('n', '<leader>gs', builtin.git_status, { desc = 'Git Status' })
