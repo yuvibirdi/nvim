@@ -43,14 +43,6 @@ vim.keymap.set("n", "<space>wr", "<C-w>r", vim.tbl_extend("force", base_opts, { 
 vim.keymap.set("n", "<space>wx", "<C-w>x", vim.tbl_extend("force", base_opts, { desc = "Exchange Windows" }))
 vim.keymap.set("n", "<space>wT", "<C-w>T", vim.tbl_extend("force", base_opts, { desc = "Move to New Tab" }))
 
--- Terminal in current file's directory
-vim.keymap.set("n", "<leader>v", function()
-  vim.cmd("belowright split | resize 15 | terminal")
-  vim.cmd("startinsert")
-end, vim.tbl_extend("force", base_opts, { desc = "Open Terminal" }))
-vim.keymap.set("t", "<leader>v", "<C-\\><C-n><cmd>bd!<cr>", { desc = "Close Terminal" })
-vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", { desc = "Exit Terminal Mode" })
-
 -- Lazygit (fullscreen, floats over everything)
 vim.keymap.set("n", "<leader>gg", function()
   local buf = vim.api.nvim_create_buf(false, true)

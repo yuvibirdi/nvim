@@ -1,4 +1,3 @@
--- Simple toggleterm-based compiler for competitive programming
 return {
   {
     'akinsho/toggleterm.nvim',
@@ -17,10 +16,16 @@ return {
         close_on_exit = true,
         hidden = true,
         display_name = 'Compile',
+        on_open = function(term)
+          vim.keymap.set('t', '<leader>v', '<C-\\><C-n><cmd>lua _G.compile_term:toggle()<CR>',
+            { buffer = term.bufnr, desc = 'Toggle terminal' })
+          vim.keymap.set('t', '<Esc>', '<C-\\><C-n>',
+            { buffer = term.bufnr, desc = 'Exit terminal mode' })
+        end,
       })
 
       local function detect_cpp_compiler()
-        local prefer = { 'g++-15', 'g++-14', 'g++-13', 'g++-12', 'g++-11', 'g++-10', 'g++-9', 'g++' }
+        local prefer = { 'g++-16', 'g++-15', 'g++-14', 'g++-13', 'g++-12', 'g++-11', 'g++-10', 'g++-9', 'g++' }
         for _, bin in ipairs(prefer) do
           if vim.fn.executable(bin) == 1 then
             return bin
@@ -128,11 +133,17 @@ return {
       end
 
       vim.keymap.set('n', '<leader>cc', compile_current_file, { desc = 'Compile current file' })
-      -- This is your existing keymap for Normal mode
       vim.keymap.set('n', '<leader>v', function()
-        compile_term:toggle()
-      end, { desc = 'Toggle compile terminal' })
-      vim.keymap.set('t', '<leader>v', '<C-\\><C-n><cmd>lua _G.compile_term:toggle()<CR>', { desc = 'Toggle compile terminal' })
+        local win = vim.fn.bufwinid(compile_term.bufnr or -1)
+        if win == -1 then
+          compile_term:open()
+        elseif win == vim.api.nvim_get_current_win() then
+          compile_term:close()
+        else
+          vim.api.nvim_set_current_win(win)
+          vim.cmd('startinsert')
+        end
+      end, { desc = 'Toggle/focus terminal' })
     end,
   },
 }
